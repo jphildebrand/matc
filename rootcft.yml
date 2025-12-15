@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to deploy a network stack and a compute stack.
+
+Resources:
+
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: arn:aws:s3:::compute-p2/network-P2.yml
+
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: arn:aws:s3:::compute-p2/compute-P2.yml
+      Parameters:
+        VPC:
+          Fn::GetAtt:
+          - NetworkStack
+          - Outputs.VPC
+        PrivateSubnet1:
+          Fn::GetAtt:
+          - NetworkStack
+          - Outputs.PrivateSubnet1
+        PrivateSubnet2:
+          Fn::GetAtt:
+          - NetworkStack
+          - Outputs.PrivateSubnet2
+        PublicSubnet1:
+          Fn::GetAtt:
+          - NetworkStack
+          - Outputs.PublicSubnet1
+        PublicSubnet2:
+          Fn::GetAtt:
+          - NetworkStack
+          - Outputs.PublicSubnet2
+        WebInstanceSecurityGroup:
+          Fn::GetAtt:
+          - NetworkStack
+          - Outputs.WebInstanceSecurityGroup
+        ALBSecurityGroup:
+          Fn::GetAtt:
+          - NetworkStack
+          - Outputs.ALBSecurityGroup

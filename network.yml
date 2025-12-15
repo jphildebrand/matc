@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy Network and Security Groups for Project 1 - Outline of Resources
+# This should be all the basic sections needed in Project #1
+Resources:
+
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: CF Lab VPC
+         
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CF Lab IGW
+  AttachGateway:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+ 
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone:
+        'Fn::Select':
+          - '0'
+          - 'Fn::GetAZs': ''
+      Tags:
+        - Key: Name
+          Value: Public Subnet 1
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone:
+        'Fn::Select':
+          - '1'
+          - 'Fn::GetAZs': ''
+      Tags:
+        - Key: Name
+          Value: Public Subnet 2
+ 
+  PrivateSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone:
+        'Fn::Select':
+          - '0'
+          - 'Fn::GetAZs': ''
+      Tags:
+        - Key: Name
+          Value: Private Subnet 1
+ 
+  PrivateSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone:
+        'Fn::Select':
+          - '1'
+          - 'Fn::GetAZs': ''
+      Tags:
+        - Key: Name
+          Value: Private Subnet 2
+ 
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: Public Route Table
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+  PublicSubnetRouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet1
+      RouteTableId:
+        Ref: PublicRouteTable
+  PublicSubnetRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet2
+      RouteTableId:
+        Ref: PublicRouteTable
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Security group for ALB
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ALB Security Group
+  WebInstanceSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Security group for web instances
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId:
+            Fn::GetAtt: [ALBSecurityGroup, GroupId]
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0 # This should be restricted in a real environment
+      Tags:
+        - Key: Name
+          Value: Web Instance Security Group
+
+# Optional BastionSecurityGroup if you build a Bastion Host
+
+Outputs:
+# This is an example of the complete YAML code for outputting the VPC information and also exporting the VPC ID for use
+# by another template
+  VPC:
+    Description: VPC
+    Value:
+      Ref: VPC
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-VPCId"
+  PrivateSubnet1:
+    Description: Private Subnet 1 ID
+    Value:
+      Ref: PrivateSubnet1
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-PrivateSubnet1Id"
+  PrivateSubnet2:
+    Description: Private Subnet 2 ID
+    Value:
+      Ref: PrivateSubnet2
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-PrivateSubnet2Id"
+  PublicSubnet1:
+    Description: Public Subnet 1 ID
+    Value:
+      Ref: PublicSubnet1
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-PublicSubnet1Id"
+  PublicSubnet2:
+    Description: Public Subnet 2 ID
+    Value:
+      Ref: PublicSubnet2
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-PublicSubnet2Id"
+  WebInstanceSecurityGroup:
+    Description: Web Instance Security Group ID
+    Value:
+      Ref: WebInstanceSecurityGroup
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-WebInstanceSecurityGroupId"
+  ALBSecurityGroup:
+    Description: ALB Security Group ID
+    Value:
+      Ref: ALBSecurityGroup
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-ALBSecurityGroupId"

@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy EC2 instances and ALB for Project 1 - App stack that imports refs from the network stack
+ 
+Parameters:
+  NetworkStackName:
+    Description: Name of the network stack to import values from
+    Type: String
+       
+  AmiId:
+    Description: AMI ID for the EC2 instances
+    Type: AWS::EC2::Image::Id
+    Default: ami-0f4c10514c387147d
+ 
+Resources:
+  WebServerInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      SecurityGroupIds:
+        - !Ref WebInstanceSecurityGroup
+      ImageId:
+        Ref: AmiId
+      InstanceType: t2.micro
+      SubnetId:
+        Fn::ImportValue:
+          Fn::Sub: "${NetworkStackName}-PrivateSubnet1Id"
+  WebServerInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      SecurityGroupIds:
+        - !Ref WebInstanceSecurityGroup
+      ImageId:
+        Ref: AmiId
+      InstanceType: t2.micro
+      SubnetId:
+        Fn::ImportValue:
+          Fn::Sub: "${NetworkStackName}-PrivateSubnet2Id"
+  WebInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from anywhere
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: "${NetworkStackName}-VPCId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: Web Instance Security Group
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      UnhealthyThresholdCount: 10
+      HealthyThresholdCount: 2
+      HealthCheckPath: "/"
+      Name: "WebServerTargetGroup"
+      Port : 80
+      Protocol: HTTP
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: "${NetworkStackName}-VPCId"
+      TargetType: instance
+      Targets:
+        - Id:
+            Ref: WebServerInstance1
+          Port: 80
+        - Id:
+            Ref: WebServerInstance2
+          Port: 80
+
+  ##look up target group properties to list instances
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - Fn::ImportValue:
+            Fn::Sub: "${NetworkStackName}-PublicSubnet1Id"
+        - Fn::ImportValue:
+            Fn::Sub: "${NetworkStackName}-PublicSubnet2Id"
+      SecurityGroups:
+        - Fn::ImportValue:
+            Fn::Sub: "${NetworkStackName}-ALBSecurityGroupId"
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn:
+        Ref: ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: ALBTargetGroup
+ 
+Outputs:
+  ApplicationLoadBalancerDNSName:
+    Description: DNS name of the Application Load Balancer
+    Value:
+      Fn::GetAtt:
+        - ApplicationLoadBalancer
+        - DNSName
